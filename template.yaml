@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudFormation template for a Serverless Text-to-Speech API
+  using API Gateway (HTTP API), Lambda, Amazon Polly, and S3.
+Resources:
+  AudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false      # Allow setting public ACLs (needed for public-read)
+        IgnorePublicAcls: false     # Don't ignore public ACLs when evaluating access
+        BlockPublicPolicy: false    # Allow public bucket policies (though we won't use one here)
+        RestrictPublicBuckets: false # Allow public access if ACLs/policies permit it
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerPreferred
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*' # Allow any header
+            AllowedMethods:
+              - GET   # Allow reading files
+              - HEAD  # Allow checking if files exist
+            AllowedOrigins:
+              - '*'   # Allow requests from any domain (WARNING: Restrict in production!)
+            MaxAge: 3000
+Outputs:
+  AudioBucketName:
+    Description: "Name of the S3 bucket storing generated audio files"
+    Value: !Ref AudioBucket
