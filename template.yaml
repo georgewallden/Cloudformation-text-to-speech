@@ -24,7 +24,47 @@ Resources:
             AllowedOrigins:
               - '*'   # Allow requests from any domain (WARNING: Restrict in production!)
             MaxAge: 3000
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument: # Allows Lambda service to assume this role
+        Version: '2012-10-17'  # Standard policy version identifier
+        Statement:             # List of permission statements
+          - Effect: Allow      # We are allowing this action
+            Principal:         # Who is allowed?
+              Service: lambda.amazonaws.com # The AWS Lambda service principal
+            Action: sts:AssumeRole # What action are they allowed to do? Assume this role.
+      Policies: # This is a list of inline policies attached to the role
+        - PolicyName: LambdaBasicExecutionPolicy # A descriptive name for this specific policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: # List of permissions granted
+                  - logs:CreateLogGroup # Allows creating log group if needed
+                  - logs:CreateLogStream # Allows creating log stream within the group
+                  - logs:PutLogEvents   # Allows writing log messages
+                Resource: !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/*"
+        - PolicyName: PollySynthesizePolicy # Name for this policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: polly:SynthesizeSpeech # Permission to generate speech
+                Resource: '*'
+        - PolicyName: S3PutObjectPolicy # Name for this policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:PutObject        # Allows uploading the file
+                  - s3:PutObjectAcl     # Allows setting the Access Control List (to public-read)
+                Resource: !Sub "arn:aws:s3:::${AudioBucket}/*"
 Outputs:
   AudioBucketName:
     Description: "Name of the S3 bucket storing generated audio files"
     Value: !Ref AudioBucket
+  LambdaRoleArn:
+    Description: "ARN of the Lambda execution role"
+    Value: !GetAtt LambdaExecutionRole.Arn # Use !GetAtt to get the ARN attribute of the role
