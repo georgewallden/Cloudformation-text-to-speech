@@ -10,6 +10,7 @@ Parameters:
   DeploymentZipKey:
     Type: String
     Description: The S3 object key (path/filename.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip
+# --- Resources --- 
 Resources:
   # --- S3 Bucket ---
   AudioBucket:
@@ -86,6 +87,25 @@ Resources:
       Code: # Specify the location of the Lambda function code
         S3Bucket: !Ref DeploymentBucket # The S3 bucket containing the code (passed as a parameter)
         S3Key: !Ref DeploymentZipKey
+  # --- API Gateway Container ---
+  HttpApi: # This is the logical ID for our API resource
+    Type: AWS::ApiGatewayV2::Api # Specifies we are creating an API Gateway v2 (HTTP API) resource
+    Properties:
+      Name: !Sub "${AWS::StackName}-TextToSpeechApi" # Give the API a descriptive name, unique per stack
+      ProtocolType: HTTP # Choose HTTP API (vs WEBSOCKET)
+      Description: API Gateway for Text-to-Speech Lambda function
+      # Enable CORS settings directly on the API for browser access
+      CorsConfiguration:
+        AllowOrigins:
+          - '*' # Allow requests from any origin (e.g., browser). WARNING: Restrict in production!
+        AllowMethods:
+          - POST    # Allow POST requests for sending text
+          - OPTIONS # Allow OPTIONS requests (used by browsers for CORS preflight checks)
+        AllowHeaders:
+          # Allow common headers, including Content-Type needed for JSON body
+          - Content-Type
+          - '*' # Or allow all headers for simplicity during development
+        MaxAge: 3000 # How long browser can cache CORS preflight response (seconds)
 Outputs:
   AudioBucketName:
     Description: "Name of the S3 bucket storing generated audio files"
