@@ -2,7 +2,16 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: |
   CloudFormation template for a Serverless Text-to-Speech API
   using API Gateway (HTTP API), Lambda, Amazon Polly, and S3.
+# --- Parameters ---
+Parameters:
+  DeploymentBucket:
+    Type: String
+    Description: The S3 bucket name where the Lambda deployment package (.zip) is stored. Example: my-lambda-code-bucket
+  DeploymentZipKey:
+    Type: String
+    Description: The S3 object key (path/filename.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip
 Resources:
+  # --- S3 Bucket ---
   AudioBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -24,6 +33,7 @@ Resources:
             AllowedOrigins:
               - '*'   # Allow requests from any domain (WARNING: Restrict in production!)
             MaxAge: 3000
+  # --- Lambda Function Execution Role---
   LambdaExecutionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -61,6 +71,21 @@ Resources:
                   - s3:PutObject        # Allows uploading the file
                   - s3:PutObjectAcl     # Allows setting the Access Control List (to public-read)
                 Resource: !Sub "arn:aws:s3:::${AudioBucket}/*"
+  # --- Lambda Function ---
+  SynthesizeSpeechFunction: # This is the Logical ID for our Lambda function
+    Type: AWS::Lambda::Function # Specifies we are creating a Lambda Function
+    Properties:
+      FunctionName: SynthesizeSpeechFunction # Optional: Gives the function a specific name in the AWS console
+      Runtime: python3.11 # Specify the Python runtime version
+      Role: !GetAtt LambdaExecutionRole.Arn # Reference the ARN of the IAM Role defined earlier in this template
+      Handler: index.lambda_handler # Specifies the file (index.py) and function (lambda_handler) to execute
+      Environment: # Define environment variables available to the Lambda code
+        Variables:
+          OUTPUT_BUCKET_NAME: !Ref AudioBucket # Pass the name of our output S3 bucket (AudioBucket)
+      Timeout: 30 # Set the execution timeout in seconds
+      Code: # Specify the location of the Lambda function code
+        S3Bucket: !Ref DeploymentBucket # The S3 bucket containing the code (passed as a parameter)
+        S3Key: !Ref DeploymentZipKey
 Outputs:
   AudioBucketName:
     Description: "Name of the S3 bucket storing generated audio files"
@@ -68,3 +93,6 @@ Outputs:
   LambdaRoleArn:
     Description: "ARN of the Lambda execution role"
     Value: !GetAtt LambdaExecutionRole.Arn # Use !GetAtt to get the ARN attribute of the role
+  LambdaFunctionName:
+    Description: "Name of the SynthesizeSpeech Lambda function"
+    Value: !Ref SynthesizeSpeechFunction
