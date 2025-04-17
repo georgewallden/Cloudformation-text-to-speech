@@ -1,0 +1,59 @@
+# .github/workflows/deploy-lambda.yaml
+
+name: Deploy Lambda Code to S3 and Build the CloudFormation Stack
+
+# Trigger this workflow on pushes to the main branch
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    # Define environment variables - CHANGE THESE!
+    env:
+      AWS_REGION: "us-east-1" # Change to your desired AWS region
+      S3_DEPLOYMENT_BUCKET: "polly-tts-api-stack-audiobucket-pauif5zfe9qf"
+      S3_OBJECT_KEY_PREFIX: "Text-to-speech/lambda_code"
+      CLOUDFORMATION_STACK_NAME: "polly-tts-api-stack"
+      CLOUDFORMATION_TEMPLATE: "template.yaml"    
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Checks-out your repository under $GITHUB_WORKSPACE
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Zip Lambda function code
+        run: |
+            zip deployment_package.zip index.py
+            echo "Created deployment_package.zip"
+      
+      - name: Upload zip file to S3 with versioned key
+        env:
+           S3_FULL_OBJECT_KEY: "${{ env.S3_OBJECT_KEY_PREFIX }}_${{ github.sha }}.zip"
+        run: |
+          echo "Uploading deployment_package.zip to s3://${{ env.S3_BUCKET_NAME }}/${S3_FULL_OBJECT_KEY}"
+          aws s3 cp deployment_package.zip s3://${{ env.S3_BUCKET_NAME }}/${S3_FULL_OBJECT_KEY}
+          echo "Upload complete."
+          echo "Uploaded Key: ${S3_FULL_OBJECT_KEY}"
+
+      - name: Deploy CloudFormation stack
+        run: |
+            echo "Starting CloudFormation deployment..."
+            aws cloudformation deploy \
+              --template-file ${{ env.CLOUDFORMATION_TEMPLATE }} \
+              --stack-name ${{ env.CLOUDFORMATION_STACK_NAME }} \
+              --parameter-overrides \
+                  DeploymentBucket="${{ env.S3_DEPLOYMENT_BUCKET }}" \
+                  DeploymentZipKey="${{ steps.upload_code.outputs.s3_key }}" \
+              --capabilities CAPABILITY_IAM \
+              --no-fail-on-empty-changeset
+            echo "CloudFormation deployment initiated."

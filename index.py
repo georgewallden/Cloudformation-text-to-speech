@@ -4,6 +4,8 @@ import os
 import json
 import uuid # To generate unique filenames
 
+# TEST TO SEE IF THE S3 UNIQUE KEYS WORKED: ATTEMPT 1
+
 # Initialize clients outside the handler for reuse
 polly = boto3.client('polly')
 s3 = boto3.client('s3')
@@ -48,17 +50,19 @@ def lambda_handler(event, context):
              raise Exception("Polly did not return an audio stream.")
 
         # --- Upload to S3 ---
-        # Generate a unique key (filename) for the MP3 file
-        output_key = f"{uuid.uuid4()}.mp3"
+        # Define the prefix (folder) for generated audio files
+        output_prefix = "generated-audio/" # <<< ADD THIS LINE
+        # Generate a unique key including the prefix
+        output_key = f"{output_prefix}{uuid.uuid4()}.mp3" # <<< MODIFIED LINE
 
         print(f"Uploading audio stream to s3://{OUTPUT_BUCKET}/{output_key}")
 
         s3.put_object(
             Bucket=OUTPUT_BUCKET,
-            Key=output_key,
-            Body=audio_stream.read(), # Read the stream content
+            Key=output_key, # <<< USES THE NEW KEY WITH PREFIX
+            Body=audio_stream.read(),
             ContentType='audio/mpeg',
-            ACL='public-read' # Make the object publicly readable
+            ACL='public-read'
         )
 
         # --- Construct Public S3 URL ---

@@ -7,15 +7,19 @@ Parameters:
   DeploymentBucket:
     Type: String
     Description: The S3 bucket name where the Lambda deployment package (.zip) is stored. Example: my-lambda-code-bucket
+
   DeploymentZipKey:
     Type: String
-    Description: The S3 object key (path/filename.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip
+    Description: The S3 object key (path/filename_COMMITSHA.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip
+    
 # --- Resources --- 
 Resources:
   # --- S3 Bucket ---
   AudioBucket:
     Type: AWS::S3::Bucket
     Properties:
+      VersioningConfiguration:
+        Status: Enabled # Set status to Enabled to turn on versioning
       PublicAccessBlockConfiguration:
         BlockPublicAcls: false      # Allow setting public ACLs (needed for public-read)
         IgnorePublicAcls: false     # Don't ignore public ACLs when evaluating access
@@ -72,40 +76,58 @@ Resources:
                   - s3:PutObject        # Allows uploading the file
                   - s3:PutObjectAcl     # Allows setting the Access Control List (to public-read)
                 Resource: !Sub "arn:aws:s3:::${AudioBucket}/*"
+
   # --- Lambda Function ---
-  SynthesizeSpeechFunction: # This is the Logical ID for our Lambda function
-    Type: AWS::Lambda::Function # Specifies we are creating a Lambda Function
+  SynthesizeSpeechFunction: # Base function definition
+    Type: AWS::Lambda::Function
     Properties:
-      FunctionName: SynthesizeSpeechFunction # Optional: Gives the function a specific name in the AWS console
-      Runtime: python3.11 # Specify the Python runtime version
-      Role: !GetAtt LambdaExecutionRole.Arn # Reference the ARN of the IAM Role defined earlier in this template
-      Handler: index.lambda_handler # Specifies the file (index.py) and function (lambda_handler) to execute
-      Environment: # Define environment variables available to the Lambda code
+      FunctionName: !Sub "${AWS::StackName}-SynthesizeSpeechFunction"
+      Runtime: python3.11
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Handler: index.lambda_handler
+      Environment:
         Variables:
-          OUTPUT_BUCKET_NAME: !Ref AudioBucket # Pass the name of our output S3 bucket (AudioBucket)
-      Timeout: 30 # Set the execution timeout in seconds
-      Code: # Specify the location of the Lambda function code
-        S3Bucket: !Ref DeploymentBucket # The S3 bucket containing the code (passed as a parameter)
+          OUTPUT_BUCKET_NAME: !Ref AudioBucket
+          AWS_REGION: !Ref AWS::Region # Good practice to pass region
+      Timeout: 30
+      Code:
+        S3Bucket: !Ref DeploymentBucket
         S3Key: !Ref DeploymentZipKey
-  # --- API Gateway Container ---
-  HttpApi: # This is the logical ID for our API resource
-    Type: AWS::ApiGatewayV2::Api # Specifies we are creating an API Gateway v2 (HTTP API) resource
+
+  # --- Lambda Version ---
+  SynthesizeSpeechVersion: 
+    Type: AWS::Lambda::Version 
     Properties:
-      Name: !Sub "${AWS::StackName}-TextToSpeechApi" # Give the API a descriptive name, unique per stack
-      ProtocolType: HTTP # Choose HTTP API (vs WEBSOCKET)
-      Description: API Gateway for Text-to-Speech Lambda function
-      # Enable CORS settings directly on the API for browser access
-      CorsConfiguration:
-        AllowOrigins:
-          - '*' # Allow requests from any origin (e.g., browser). WARNING: Restrict in production!
-        AllowMethods:
-          - POST    # Allow POST requests for sending text
-          - OPTIONS # Allow OPTIONS requests (used by browsers for CORS preflight checks)
-        AllowHeaders:
-          # Allow common headers, including Content-Type needed for JSON body
-          - Content-Type
-          - '*' # Or allow all headers for simplicity during development
-        MaxAge: 3000 # How long browser can cache CORS preflight response (seconds)
+      FunctionName: !Ref SynthesizeSpeechFunction 
+      Description: !Sub "Version published by stack ${AWS::StackName} for code: ${DeploymentZipKey}"
+
+  SynthesizeSpeechLiveAlias: # Logical ID for the Alias resource
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref SynthesizeSpeechFunction # The base function this alias is for
+      FunctionVersion: !GetAtt SynthesizeSpeechVersion.Version # Gets the most recent version of that function
+      Name: live
+
+  # # --- API Gateway Container ---
+  # HttpApi: # This is the logical ID for our API resource
+  #   Type: AWS::ApiGatewayV2::Api # Specifies we are creating an API Gateway v2 (HTTP API) resource
+  #   Properties:
+  #     Name: !Sub "${AWS::StackName}-TextToSpeechApi" # Give the API a descriptive name, unique per stack
+  #     ProtocolType: HTTP # Choose HTTP API (vs WEBSOCKET)
+  #     Description: API Gateway for Text-to-Speech Lambda function
+  #     # Enable CORS settings directly on the API for browser access
+  #     CorsConfiguration:
+  #       AllowOrigins:
+  #         - '*' # Allow requests from any origin (e.g., browser). WARNING: Restrict in production!
+  #       AllowMethods:
+  #         - POST    # Allow POST requests for sending text
+  #         - OPTIONS # Allow OPTIONS requests (used by browsers for CORS preflight checks)
+  #       AllowHeaders:
+  #         # Allow common headers, including Content-Type needed for JSON body
+  #         - Content-Type
+  #         - '*' # Or allow all headers for simplicity during development
+  #       MaxAge: 3000 # How long browser can cache CORS preflight response (seconds)
+
 Outputs:
   AudioBucketName:
     Description: "Name of the S3 bucket storing generated audio files"
@@ -116,3 +138,9 @@ Outputs:
   LambdaFunctionName:
     Description: "Name of the SynthesizeSpeech Lambda function"
     Value: !Ref SynthesizeSpeechFunction
+  LatestLambdaVersionArn:
+     Description: "ARN of the latest published Lambda version created by this stack"
+     Value: !Ref SynthesizeSpeechVersion # AWS::Lambda::Version ARN
+  LiveLambdaAliasArn:
+     Description: "ARN of the 'live' Lambda alias"
+     Value: !Ref SynthesizeSpeechLiveAlias # AWS::Lambda::Alias ARN
