@@ -46,6 +46,14 @@ jobs:
           echo "Uploaded Key: ${S3_FULL_OBJECT_KEY}"
           echo "s3_key=${S3_FULL_OBJECT_KEY}" >> $GITHUB_OUTPUT
 
+      # --- START: Add Debugging Step ---
+      - name: Debug Print S3 Key Output
+        run: |
+          echo "Attempting to print the output..."
+          echo "Value for steps.upload_code.outputs.s3_key is: [${{ steps.upload_code.outputs.s3_key }}]"
+          echo "Debug step finished."
+      # --- END: Add Debugging Step ---
+
       - name: Deploy CloudFormation stack
         run: |
             echo "Starting CloudFormation deployment..."
