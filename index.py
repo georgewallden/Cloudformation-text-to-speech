@@ -4,7 +4,7 @@ import os
 import json
 import uuid # To generate unique filenames
 
-# TEST TO SEE IF THE S3 UNIQUE KEYS WORKED: ATTEMPT 1
+# TEST TO SEE IF THE S3 UNIQUE KEYS WORKED: ATTEMPT 2
 
 # Initialize clients outside the handler for reuse
 polly = boto3.client('polly')
