@@ -93,7 +93,8 @@ Resources:
 
   # --- Lambda Version ---
   SynthesizeSpeechVersion: 
-    Type: AWS::Lambda::Version 
+    Type: AWS::Lambda::Version
+    DeletionPolicy: Retain 
     Properties:
       FunctionName: !Ref SynthesizeSpeechFunction 
       Description: !Sub "Version published by stack ${AWS::StackName} for code: ${DeploymentZipKey}"
