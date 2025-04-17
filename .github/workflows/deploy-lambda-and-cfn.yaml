@@ -37,14 +37,19 @@ jobs:
             echo "Created deployment_package.zip"
       
       - name: Upload zip file to S3 with versioned key
+        id: upload_code
         env:
-           S3_FULL_OBJECT_KEY: "${{ env.S3_OBJECT_KEY_PREFIX }}_${{ github.sha }}.zip"
+          S3_FULL_OBJECT_KEY: "${{ env.S3_OBJECT_KEY_PREFIX }}_${{ github.sha }}.zip"
         run: |
-          echo "Uploading deployment_package.zip to s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY}" # Include Bucket Name
-          aws s3 cp deployment_package.zip s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY} 
-          echo "Upload complete."
-          echo "Uploaded Key: ${S3_FULL_OBJECT_KEY}"
-          echo "s3_key=${S3_FULL_OBJECT_KEY}" >> $GITHUB_OUTPUT
+              # Execute the S3 upload command first
+              echo "Uploading deployment_package.zip to s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY}"
+              aws s3 cp deployment_package.zip s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY}
+              echo "Upload complete."
+    
+              # Now, explicitly set the output using printf for robustness
+              # Use printf to ensure correct formatting and write to the $GITHUB_OUTPUT file
+              printf "%s=%s\n" "s3_key" "${S3_FULL_OBJECT_KEY}" >> $GITHUB_OUTPUT
+              echo "Output 's3_key' set." # Add confirmation log
 
       # --- START: Add Debugging Step ---
       - name: Debug Print S3 Key Output
