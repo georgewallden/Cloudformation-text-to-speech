@@ -107,25 +107,57 @@ Resources:
       FunctionVersion: !GetAtt SynthesizeSpeechVersion.Version # Gets the most recent version of that function
       Name: live
 
-  # # --- API Gateway Container ---
-  # HttpApi: # This is the logical ID for our API resource
-  #   Type: AWS::ApiGatewayV2::Api # Specifies we are creating an API Gateway v2 (HTTP API) resource
-  #   Properties:
-  #     Name: !Sub "${AWS::StackName}-TextToSpeechApi" # Give the API a descriptive name, unique per stack
-  #     ProtocolType: HTTP # Choose HTTP API (vs WEBSOCKET)
-  #     Description: API Gateway for Text-to-Speech Lambda function
-  #     # Enable CORS settings directly on the API for browser access
-  #     CorsConfiguration:
-  #       AllowOrigins:
-  #         - '*' # Allow requests from any origin (e.g., browser). WARNING: Restrict in production!
-  #       AllowMethods:
-  #         - POST    # Allow POST requests for sending text
-  #         - OPTIONS # Allow OPTIONS requests (used by browsers for CORS preflight checks)
-  #       AllowHeaders:
-  #         # Allow common headers, including Content-Type needed for JSON body
-  #         - Content-Type
-  #         - '*' # Or allow all headers for simplicity during development
-  #       MaxAge: 3000 # How long browser can cache CORS preflight response (seconds)
+  # --- API Gateway Container ---
+  HttpApi: # This is the logical ID for our API resource
+    Type: AWS::ApiGatewayV2::Api # Specifies we are creating an API Gateway v2 (HTTP API) resource
+    Properties:
+      Name: !Sub "${AWS::StackName}-TextToSpeechApi" # Give the API a descriptive name, unique per stack
+      ProtocolType: HTTP # Choose HTTP API (vs WEBSOCKET)
+      Description: API Gateway for Text-to-Speech Lambda function
+      # Enable CORS settings directly on the API for browser access
+      CorsConfiguration:
+        AllowOrigins:
+          - '*' # Allow requests from any origin (e.g., browser). WARNING: Restrict in production!
+        AllowMethods:
+          - POST    # Allow POST requests for sending text
+          - OPTIONS # Allow OPTIONS requests (used by browsers for CORS preflight checks)
+        AllowHeaders:
+          # Allow common headers, including Content-Type needed for JSON body
+          - Content-Type
+          - '*' # Or allow all headers for simplicity during development
+        MaxAge: 3000 # How long browser can cache CORS preflight response (seconds)
+
+  # This defines how API Gateway connects to our Lambda function alias
+  HttpApiLambdaIntegration: # Logical ID for the Integration
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi # Link to the API we defined above
+      IntegrationType: AWS_PROXY # Use Lambda proxy integration (passes request/response directly)
+      # --- KEY PART: Target the LIVE alias ARN ---
+      IntegrationUri: !Ref SynthesizeSpeechLiveAlias # Use !Ref on the Alias resource to get its ARN
+      # PayloadFormatVersion 2.0 is generally recommended for HTTP APIs with Lambda proxy
+      PayloadFormatVersion: '2.0'
+      TimeoutInMillis: 29000 # Optional: Max ~29s, slightly less than Lambda timeout
+
+  HttpApiSynthesizeRoute: # Logical ID for the Route
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi # Link to the API this route belongs to
+      # Define the specific route key: HTTP Method + Path
+      RouteKey: POST /synthesize
+      # Specify what this route should trigger
+      Target: !Sub "integrations/${HttpApiLambdaIntegration}" # Connects to the integration resource defined above
+
+  LambdaApiGatewayInvokePermission: # Logical ID for the Permission
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction # The specific Lambda action API Gateway needs
+      # --- KEY PART: Grant permission TO the Alias ---
+      FunctionName: !Ref SynthesizeSpeechLiveAlias # Target the specific alias ARN
+      Principal: apigateway.amazonaws.com # The service principal for API Gateway
+      # SourceArn restricts *which* API Gateway can invoke the function.
+      # This format allows any stage/method/path from THIS specific HttpApi.
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${HttpApi}/*/*"
 
 Outputs:
   AudioBucketName:
