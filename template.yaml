@@ -6,12 +6,10 @@ Description: |
 Parameters:
   DeploymentBucket:
     Type: String
-    Description: The S3 bucket name where the Lambda deployment package (.zip) is stored. Example: my-lambda-code-bucket
-
+    Description: "The S3 bucket name where the Lambda deployment package (.zip) is stored. Example: my-lambda-code-bucket"
   DeploymentZipKey:
     Type: String
-    Description: The S3 object key (path/filename_COMMITSHA.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip
-    
+    Description: "The S3 object key (path/filename_COMMITSHA.zip) for the Lambda deployment package. Example: text-to-speech/v1.zip"
 # --- Resources --- 
 Resources:
   # --- S3 Bucket ---
