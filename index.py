@@ -13,7 +13,7 @@ s3 = boto3.client('s3')
 # Get the bucket name from environment variable
 OUTPUT_BUCKET = os.environ['OUTPUT_BUCKET_NAME']
 # Determine region dynamically (best practice)
-AWS_REGION = os.environ['AWS_REGION']
+AWS_REGION = os.environ.get('AWS_REGION')
 
 def lambda_handler(event, context):
     print(f"Received event: {json.dumps(event)}")

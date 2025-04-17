@@ -86,7 +86,6 @@ Resources:
       Environment:
         Variables:
           OUTPUT_BUCKET_NAME: !Ref AudioBucket
-          AWS_REGION: !Ref AWS::Region # Good practice to pass region
       Timeout: 30
       Code:
         S3Bucket: !Ref DeploymentBucket
@@ -99,6 +98,7 @@ Resources:
       FunctionName: !Ref SynthesizeSpeechFunction 
       Description: !Sub "Version published by stack ${AWS::StackName} for code: ${DeploymentZipKey}"
 
+  # --- Lambda Alias ---
   SynthesizeSpeechLiveAlias: # Logical ID for the Alias resource
     Type: AWS::Lambda::Alias
     Properties:
