@@ -40,8 +40,8 @@ jobs:
         env:
            S3_FULL_OBJECT_KEY: "${{ env.S3_OBJECT_KEY_PREFIX }}_${{ github.sha }}.zip"
         run: |
-          echo "Uploading deployment_package.zip to s3://${{ env.S3_BUCKET_NAME }}/${S3_FULL_OBJECT_KEY}"
-          aws s3 cp deployment_package.zip s3://${{ env.S3_BUCKET_NAME }}/${S3_FULL_OBJECT_KEY}
+          echo "Uploading deployment_package.zip to s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY}" # Include Bucket Name
+          aws s3 cp deployment_package.zip s3://${{ env.S3_DEPLOYMENT_BUCKET }}/${S3_FULL_OBJECT_KEY} 
           echo "Upload complete."
           echo "Uploaded Key: ${S3_FULL_OBJECT_KEY}"
 
